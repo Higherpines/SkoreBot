@@ -64,11 +64,11 @@ def build_final_summary_embed(sport_name, summary):
     return emb
 
 async def check_sport(scoreboard_url, sport_name, channel):
-    \"\"\"Check one sport: find USC games, post scoring plays, pre-game and final summaries.\"\"\"
+    "\"\"Check one sport: find USC games, post scoring plays, pre-game and final summaries.\"\"\"
     try:
         data = await fetch_json(scoreboard_url)
     except Exception as e:
-        print(f\"Failed to fetch {sport_name} scoreboard: {e}\")
+        print(f"Failed to fetch {sport_name} scoreboard: {e}")
         return
 
     for event in data.get(\"events\", []):
