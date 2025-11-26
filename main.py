@@ -197,7 +197,8 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
 # Slash command: /schedule [sport]
 @tree.command(name="schedule", description="Get upcoming schedule for USC for a sport.")
-@app_commands.describe(sport_name='Optional sport name, e.g. "Men's Basketball"')
+@app_commands.describe(sport_name='Optional sport name, e.g. "Mens Basketball"')
+
 async def slash_schedule(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
     sport = None
@@ -209,72 +210,72 @@ async def slash_schedule(interaction: discord.Interaction, sport_name: str = Non
     else:
         sport = SPORTS[0]
     if not sport:
-        await interaction.followup.send(\"Sport not found in config.\")
+        await interaction.followup.send("Sport not found in config.")
         return
     try:
-        data = await fetch_json(sport[\"url\"]) 
+        data = await fetch_json(sport["url"]) 
     except Exception as e:
-        await interaction.followup.send(f\"Failed to fetch scoreboard: {e}\")
+        await interaction.followup.send(f"Failed to fetch scoreboard: {e}")
         return
     lines = []
-    for event in data.get(\"events\", []):
-        comp = event.get(\"competitions\", [None])[0]
+    for event in data.get("events", []):
+        comp = event.get("competitions", [None])[0]
         if not comp:
             continue
         # check if USC is a competitor
-        if any(SCHOOL.lower() in c.get(\"team\", {}).get(\"displayName\", \"\").lower() for c in comp.get(\"competitors\", [])):
-            start_iso = event.get(\"date\")
-            start_dt = datetime.fromisoformat(start_iso.replace(\"Z\", \"+00:00\"))
-            vs = \" vs \".join([c.get(\"team\", {}).get(\"displayName\",\"\") for c in comp.get(\"competitors\", [])])
-            lines.append(f\"{start_dt.astimezone().strftime('%Y-%m-%d %H:%M %Z')}: {vs}\")
+        if any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower() for c in comp.get("competitors", [])):
+            start_iso = event.get("date")
+            start_dt = datetime.fromisoformat(start_iso.replace("Z", \"+00:00"))
+            vs = " vs ".join([c.get("team", {}).get("displayName","") for c in comp.get("competitors", [])])
+            lines.append(f"{start_dt.astimezone().strftime('%Y-%m-%d %H:%M %Z')}: {vs}")
     if not lines:
-        await interaction.followup.send(\"No scheduled games found.\")
+        await interaction.followup.send("No scheduled games found.")
         return
-    await interaction.followup.send(\"\\n\".join(lines))
+    await interaction.followup.send("n".join(lines))
 
 # Slash command: /nextgame [sport]
-@tree.command(name=\"nextgame\", description=\"Get the next USC game for a sport.\")
+@tree.command(name="nextgame", description="Get the next USC game for a sport.")
 @app_commands.describe(sport_name='Optional sport name')
 async def slash_nextgame(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
     sport = None
     if sport_name:
         for s in SPORTS:
-            if s[\"name\"].lower() == sport_name.lower():
+            if s["name"].lower() == sport_name.lower():
                 sport = s
                 break
     else:
         sport = SPORTS[0]
     if not sport:
-        await interaction.followup.send(\"Sport not found in config.\")
+        await interaction.followup.send("Sport not found in config.")
         return
     try:
-        data = await fetch_json(sport[\"url\"]) 
+        data = await fetch_json(sport["url"]) 
     except Exception as e:
-        await interaction.followup.send(f\"Failed to fetch scoreboard: {e}\")
+        await interaction.followup.send(f"Failed to fetch scoreboard: {e}")
         return
     upcoming = []
     now = datetime.now(timezone.utc)
-    for event in data.get(\"events\", []):
-        start_iso = event.get(\"date\")
-        start_dt = datetime.fromisoformat(start_iso.replace(\"Z\", \"+00:00\"))
-        comp = event.get(\"competitions\", [None])[0]
-        if comp and any(SCHOOL.lower() in c.get(\"team\", {}).get(\"displayName\", \"\").lower() for c in comp.get(\"competitors\", [])):
+    for event in data.get("events", []):
+        start_iso = event.get("date")
+        start_dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+        comp = event.get("competitions", [None])[0]
+        if comp and any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower() for c in comp.get("competitors", [])):
             if start_dt > now:
                 upcoming.append((start_dt, event))
     if not upcoming:
-        await interaction.followup.send(\"No upcoming games found.\")
+        await interaction.followup.send("No upcoming games found.")
         return
     upcoming.sort(key=lambda x: x[0])
     start_dt, event = upcoming[0]
-    comp = event.get(\"competitions\", [None])[0]
-    vs = \" vs \".join([c.get(\"team\", {}).get(\"displayName\",\"\") for c in comp.get(\"competitors\", [])])
-    await interaction.followup.send(f\"Next game: {start_dt.astimezone().strftime('%Y-%m-%d %H:%M %Z')} — {vs}\")
+    comp = event.get("competitions", [None])[0]
+    vs = " vs ".join([c.get("team", {}).get("displayName","") for c in comp.get("competitors", [])])
+    await interaction.followup.send(f"Next game: {start_dt.astimezone().strftime('%Y-%m-%d %H:%M %Z')} — {vs}")
 
 @bot.event
 async def on_ready():
     await tree.sync()
-    print(f\"Logged in as {bot.user} — synced commands.\")
+    print(f"Logged in as {bot.user} — synced commands.")
     watcher_loop.start()
 
 # Run
