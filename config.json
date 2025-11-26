@@ -1,0 +1,29 @@
+{
+    "token": "YOUR_BOT_TOKEN_HERE",
+    "channel_id": 1234567890,
+    "school_name": "South Carolina",
+    "check_interval_seconds": 60,
+    "pre_game_minutes": 30,
+    "sports": [
+        {
+            "name": "College Football",
+            "url": "https://site.web.api.espn.com/apis/v2/sports/football/college-football/scoreboard"
+        },
+        {
+            "name": "Men's Basketball",
+            "url": "https://site.web.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/scoreboard"
+        },
+        {
+            "name": "Women's Basketball",
+            "url": "https://site.web.api.espn.com/apis/v2/sports/basketball/womens-college-basketball/scoreboard"
+        },
+        {
+            "name": "Baseball",
+            "url": "https://site.web.api.espn.com/apis/v2/sports/baseball/college-baseball/scoreboard"
+        },
+        {
+            "name": "Softball",
+            "url": "https://site.web.api.espn.com/apis/v2/sports/softball/college-softball/scoreboard"
+        }
+    ]
+}
