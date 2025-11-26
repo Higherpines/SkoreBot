@@ -92,7 +92,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
         try:
             summary = await fetch_json(summary_url)
         except Exception as e:
-            print(f\"Failed to fetch summary for {game_id}: {e}\")
+            print(f"Failed to fetch summary for {game_id}: {e}")
             continue
 
         # scoring plays handling
@@ -122,7 +122,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
                 delta = start_dt - now
                 if 0 < delta.total_seconds() <= PRE_GAME_MINUTES * 60:
                     if game_id not in pre_notified:
-                        emb = discord.Embed(title=f\"Upcoming: {sport_name}", description=f\"{SCHOOL} plays in {int(delta.total_seconds()//60)} minutes.")
+                        emb = discord.Embed(title=f"Upcoming: {sport_name}", description=f\"{SCHOOL} plays in {int(delta.total_seconds()//60)} minutes.")
                         emb.add_field(name="Starts", value=start_dt.astimezone().strftime('%Y-%m-%d %H:%M:%S %Z'), inline=False)
                         await channel.send(embed=emb)
                         pre_notified.add(game_id)
