@@ -73,14 +73,14 @@ async def check_sport(scoreboard_url, sport_name, channel):
 
     for event in data.get("events", []):
         game_id = event.get("id")
-        comp = event.get(\"competitions\", [None])[0]
+        comp = event.get("competitions", [None])[0]
         if comp is None:
             continue
         competitors = comp.get("competitors", [])
         # Determine if our school is playing
         found = False
         for c in competitors:
-            team_name = c.get("team", {}).get("displayName", \"\")
+            team_name = c.get("team", {}).get("displayName", "")
             if SCHOOL.lower() in team_name.lower():
                 found = True
                 break
@@ -128,15 +128,15 @@ async def check_sport(scoreboard_url, sport_name, channel):
                         pre_notified.add(game_id)
 
         # final summary
-        if status_type in (\"post\", \"completed\", \"final\"):  # various flavors
-            if prev and prev not in (\"post\", \"completed\", \"final\"):
+        if status_type in ("post", "completed", "final"):  # various flavors
+            if prev and prev not in ("post", "completed", "final"):
                 # game just finished -> post final summary embed
-                emb = discord.Embed(title=f\"{sport_name} — Final\", description=f\"Final score for {SCHOOL}\")
+                emb = discord.Embed(title=f\"{sport_name} — Final", description=f\"Final score for {SCHOOL}")
                 # attempt to pull competitor scores
                 try:
-                    comps = summary.get(\"competitions\", [])[0].get(\"competitors\", [])
+                    comps = summary.get("competitions", [])[0].get("competitors", [])
                     for c in comps:
-                        emb.add_field(name=c.get(\"team\", {}).get(\"displayName\",\"\"), value=c.get(\"score\",\"0\"), inline=True)
+                        emb.add_field(name=c.get("team", {}).get("displayName",""), value=c.get("score","0"), inline=True)
                 except Exception:
                     pass
                 await channel.send(embed=emb)
@@ -153,7 +153,7 @@ async def watcher_loop():
         return
 
     for sport in SPORTS:
-        await check_sport(sport[\"url\"], sport[\"name\"], channel)
+        await check_sport(sport["url"], sport["nam\"], channel)
 
 # Slash command: /score [sport]
 @tree.command(name=\"score\", description=\"Get current live score for USC. Optionally specify sport_name.\")
