@@ -122,7 +122,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
                 delta = start_dt - now
                 if 0 < delta.total_seconds() <= PRE_GAME_MINUTES * 60:
                     if game_id not in pre_notified:
-                        emb = discord.Embed(title=f"Upcoming: {sport_name}", description=f\"{SCHOOL} plays in {int(delta.total_seconds()//60)} minutes.")
+                        emb = discord.Embed(title=f"Upcoming: {sport_name}", description=f"{SCHOOL} plays in {int(delta.total_seconds()//60)} minutes.")
                         emb.add_field(name="Starts", value=start_dt.astimezone().strftime('%Y-%m-%d %H:%M:%S %Z'), inline=False)
                         await channel.send(embed=emb)
                         pre_notified.add(game_id)
@@ -131,7 +131,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
         if status_type in ("post", "completed", "final"):  # various flavors
             if prev and prev not in ("post", "completed", "final"):
                 # game just finished -> post final summary embed
-                emb = discord.Embed(title=f\"{sport_name} — Final", description=f\"Final score for {SCHOOL}")
+                emb = discord.Embed(title=f"{sport_name} — Final", description=f"Final score for {SCHOOL}")
                 # attempt to pull competitor scores
                 try:
                     comps = summary.get("competitions", [])[0].get("competitors", [])
@@ -149,61 +149,61 @@ async def watcher_loop():
     await bot.wait_until_ready()
     channel = bot.get_channel(CHANNEL_ID)
     if channel is None:
-        print(\"Channel not found; make sure CHANNEL_ID is correct and bot is in the guild.\")
+        print("Channel not found; make sure CHANNEL_ID is correct and bot is in the guild.")
         return
 
     for sport in SPORTS:
-        await check_sport(sport["url"], sport["nam\"], channel)
+        await check_sport(sport["url"], sport["nam"], channel)
 
 # Slash command: /score [sport]
-@tree.command(name=\"score\", description=\"Get current live score for USC. Optionally specify sport_name.\")
-@app_commands.describe(sport_name='Optional sport name, e.g. \"College Football\"')
+@tree.command(name="score", description="Get current live score for USC. Optionally specify sport_name.")
+@app_commands.describe(sport_name='Optional sport name, e.g. "College Football"')
 async def slash_score(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
     # pick sport
     sport = None
     if sport_name:
         for s in SPORTS:
-            if s[\"name\"].lower() == sport_name.lower():
+            if s["name"].lower() == sport_name.lower():
                 sport = s
                 break
     else:
         sport = SPORTS[0]  # default first sport if not provided
     if not sport:
-        await interaction.followup.send(\"Sport not found in config.\")
+        await interaction.followup.send("Sport not found in config.")
         return
     try:
-        data = await fetch_json(sport[\"url\"]) 
+        data = await fetch_json(sport["url"]) 
     except Exception as e:
-        await interaction.followup.send(f\"Failed to fetch scoreboard: {e}\")
+        await interaction.followup.send(f"Failed to fetch scoreboard: {e}")
         return
     # find today's/ongoing USC game(s)
     lines = []
-    for event in data.get(\"events\", []):
-        comp = event.get(\"competitions\", [None])[0]
+    for event in data.get("events", []):
+        comp = event.get("competitions", [None])[0]
         if not comp:
             continue
-        for c in comp.get(\"competitors\", []):
-            if SCHOOL.lower() in c.get(\"team\", {}).get(\"displayName\", \"\").lower():
-                status = comp.get(\"status\", {}).get(\"type\", {}).get(\"description\", \"\")
-                away = comp.get(\"competitors\", [])[0]
-                home = comp.get(\"competitors\", [None, None])[1]
-                lines.append(f\"{away.get('team',{}).get('displayName','')} {away.get('score','0')} - {home.get('team',{}).get('displayName','')} {home.get('score','0')} ({status})\" )
+        for c in comp.get("competitors", []):
+            if SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower():
+                status = comp.get("status", {}).get("type", {}).get("description", "")
+                away = comp.get("competitors", [])[0]
+                home = comp.get("competitors", [None, None])[1]
+                lines.append(f"{away.get('team',{}).get('displayName','')} {away.get('score','0')} - {home.get('team',{}).get('displayName','')} {home.get('score','0')} ({status})" )
     if not lines:
-        await interaction.followup.send(\"No current games found for that sport.\")
+        await interaction.followup.send("No current games found for that sport.")
         return
-    msg = \"\\n\".join(lines)
+    msg = "n".join(lines)
     await interaction.followup.send(msg)
 
 # Slash command: /schedule [sport]
-@tree.command(name=\"schedule\", description=\"Get upcoming schedule for USC for a sport.\")
-@app_commands.describe(sport_name='Optional sport name, e.g. \"Men\\'s Basketball\"')
+@tree.command(name="schedule", description="Get upcoming schedule for USC for a sport.")
+@app_commands.describe(sport_name='Optional sport name, e.g. "Men's Basketball"')
 async def slash_schedule(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
     sport = None
     if sport_name:
         for s in SPORTS:
-            if s[\"name\"].lower() == sport_name.lower():
+            if s["name"].lower() == sport_name.lower():
                 sport = s
                 break
     else:
