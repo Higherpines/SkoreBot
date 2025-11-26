@@ -39,7 +39,7 @@ def build_embed_for_play(sport_name, play, summary=None):
     emb.add_field(name="Play", value=play.get("text", "N/A"), inline=False)
     team = play.get("team", {}).get("displayName", "Team")
     emb.add_field(name="Team", value=team, inline=True)
-    emb.add_field(name="Score", value=f"{play.get('awayScore','0')} - {play.get('homeScore','0')}\", inline=True)
+    emb.add_field(name="Score", value=f"{play.get('awayScore','0')} - {play.get('homeScore','0')}", inline=True)
     if summary:
         emb.set_footer(text=summary)
     emb.timestamp = datetime.now(timezone.utc)
