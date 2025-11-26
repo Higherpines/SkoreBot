@@ -225,7 +225,7 @@ async def slash_schedule(interaction: discord.Interaction, sport_name: str = Non
         # check if USC is a competitor
         if any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower() for c in comp.get("competitors", [])):
             start_iso = event.get("date")
-            start_dt = datetime.fromisoformat(start_iso.replace("Z", \"+00:00"))
+            start_dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
             vs = " vs ".join([c.get("team", {}).get("displayName","") for c in comp.get("competitors", [])])
             lines.append(f"{start_dt.astimezone().strftime('%Y-%m-%d %H:%M %Z')}: {vs}")
     if not lines:
