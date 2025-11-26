@@ -71,16 +71,16 @@ async def check_sport(scoreboard_url, sport_name, channel):
         print(f"Failed to fetch {sport_name} scoreboard: {e}")
         return
 
-    for event in data.get(\"events\", []):
-        game_id = event.get(\"id\")
+    for event in data.get("events", []):
+        game_id = event.get("id")
         comp = event.get(\"competitions\", [None])[0]
         if comp is None:
             continue
-        competitors = comp.get(\"competitors\", [])
+        competitors = comp.get("competitors", [])
         # Determine if our school is playing
         found = False
         for c in competitors:
-            team_name = c.get(\"team\", {}).get(\"displayName\", \"\")
+            team_name = c.get("team", {}).get("displayName", \"\")
             if SCHOOL.lower() in team_name.lower():
                 found = True
                 break
@@ -88,7 +88,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
             continue
 
         # Fetch summary for details
-        summary_url = scoreboard_url.replace(\"scoreboard\", f\"summary?event={game_id}\")
+        summary_url = scoreboard_url.replace("scoreboard", f"summary?event={game_id}")
         try:
             summary = await fetch_json(summary_url)
         except Exception as e:
@@ -96,7 +96,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
             continue
 
         # scoring plays handling
-        scoring = summary.get(\"scoringPlays\", []) or []
+        scoring = summary.get("scoringPlays", []) or []
         old = last_updates.get(game_id, [])
         if scoring != old:
             # find new plays (keep stable ordering)
@@ -107,23 +107,23 @@ async def check_sport(scoreboard_url, sport_name, channel):
             last_updates[game_id] = scoring
 
         # detect status transitions for pre-game and final
-        status_type = comp.get(\"status\", {}).get(\"type\", {}).get(\"name\", \"\").lower()
+        status_type = comp.get("status", {}).get("type", {}).get("name", "").lower()
         # normalizing: 'pre' -> pre-game, 'in' -> live, 'post' or 'complete' -> completed
         prev = last_status.get(game_id)
         # pre-game notification
-        if status_type == \"pre\" or status_type == \"scheduled\" or comp.get(\"status\", {}).get(\"type\", {}).get(\"description\",\"").lower().startswith(\"scheduled\") :
+        if status_type == "pre" or status_type == "scheduled" or comp.get("status", {}).get("type", {}).get("description","").lower().startswith("scheduled") :
             # parse start time
-            start = comp.get(\"status\", {}).get(\"type\", {}).get(\"detail\") or event.get(\"date\")
+            start = comp.get("status", {}).get("type", {}).get("detail") or event.get("date")
             # use event['date'] if available; it's ISO8601
-            start_iso = event.get(\"date\")
+            start_iso = event.get("date")
             if start_iso:
-                start_dt = datetime.fromisoformat(start_iso.replace(\"Z\", \"+00:00\"))
+                start_dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
                 now = datetime.now(timezone.utc)
                 delta = start_dt - now
                 if 0 < delta.total_seconds() <= PRE_GAME_MINUTES * 60:
                     if game_id not in pre_notified:
-                        emb = discord.Embed(title=f\"Upcoming: {sport_name}\", description=f\"{SCHOOL} plays in {int(delta.total_seconds()//60)} minutes.\")
-                        emb.add_field(name=\"Starts\", value=start_dt.astimezone().strftime('%Y-%m-%d %H:%M:%S %Z'), inline=False)
+                        emb = discord.Embed(title=f\"Upcoming: {sport_name}", description=f\"{SCHOOL} plays in {int(delta.total_seconds()//60)} minutes.")
+                        emb.add_field(name="Starts", value=start_dt.astimezone().strftime('%Y-%m-%d %H:%M:%S %Z'), inline=False)
                         await channel.send(embed=emb)
                         pre_notified.add(game_id)
 
