@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 with open("config.json") as f:
     cfg = json.load(f)
 
-os.getenv("DICORD_TOKEN")  # Railway injects this at runtime
+TOKEN = os.getenv("DICORD_TOKEN")  # Railway injects this at runtime
 CHANNEL_ID = cfg["channel_id"]
 SCHOOL = cfg.get("school_name", "South Carolina")
 SPORTS = cfg["sports"]
