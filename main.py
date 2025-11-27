@@ -211,6 +211,15 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             # Match "South Carolina" instead of "USC"
             if not any("south carolina" in c.get("team", {}).get("displayName", "").lower()
                        for c in comp.get("competitors", [])):
+                           for event in data.get("events", []):
+    comp = event.get("competitions", [None])[0]
+    if not comp:
+        continue
+
+    # DEBUG: print all team names
+    for c in comp.get("competitors", []):
+        print("DEBUG TEAM:", c.get("team", {}).get("displayName", ""))
+
                 continue
 
             # Only include completed games
