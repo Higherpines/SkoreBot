@@ -208,19 +208,14 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             if not comp:
                 continue
 
-            # DEBUG: print team names and status
-            for c in comp.get("competitors", []):
-                print("DEBUG TEAM:", c.get("team", {}).get("displayName", ""))
-            print("DEBUG STATUS:", comp.get("status", {}).get("type", {}).get("name", ""))
-
             # Match "South Carolina Gamecocks"
             if not any("south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower()
                        for c in comp.get("competitors", [])):
                 continue
 
-            # Only include completed games (we’ll adjust once we see actual status strings)
-            status = comp.get("status", {}).get("type", {}).get("name", "").lower()
-            if status not in ("post", "completed", "final"):
+            # ✅ Correct status check
+            status = comp.get("status", {}).get("type", {}).get("name", "").upper()
+            if status != "STATUS_FINAL":
                 continue
 
             away = comp.get("competitors", [])[0]
@@ -237,6 +232,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         return
 
     await interaction.followup.send("\n".join(lines))
+
 
 
 
