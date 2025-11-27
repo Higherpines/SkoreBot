@@ -3,7 +3,6 @@ import discord
 from discord.ext import tasks
 from discord import app_commands
 import aiohttp
-import asyncio
 import json
 from datetime import datetime, timezone, timedelta
 
@@ -50,7 +49,7 @@ def build_embed_for_play(sport_name, play, summary=None):
     return emb
 
 # -----------------------------
-# Main Game Checking Logic
+# Game Checking Logic
 # -----------------------------
 
 async def check_sport(scoreboard_url, sport_name, channel):
@@ -66,12 +65,10 @@ async def check_sport(scoreboard_url, sport_name, channel):
         if comp is None:
             continue
 
-        # Check if our school is playing
         competitors = comp.get("competitors", [])
         if not any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower() for c in competitors):
             continue
 
-        # Fetch summary
         summary_url = scoreboard_url.replace("scoreboard", f"summary?event={game_id}")
         try:
             summary = await fetch_json(summary_url)
@@ -79,7 +76,6 @@ async def check_sport(scoreboard_url, sport_name, channel):
             print(f"Failed to fetch summary for {game_id}: {e}")
             continue
 
-        # Scoring plays
         scoring = summary.get("scoringPlays", []) or []
         old = last_updates.get(game_id, [])
         if scoring != old:
@@ -89,11 +85,9 @@ async def check_sport(scoreboard_url, sport_name, channel):
                 await channel.send(embed=emb)
             last_updates[game_id] = scoring
 
-        # Status transitions
         status_type = comp.get("status", {}).get("type", {}).get("name", "").lower()
         prev = last_status.get(game_id)
 
-        # Pre-game notifications
         if status_type in ("pre", "scheduled") or comp.get("status", {}).get("type", {}).get("description", "").lower().startswith("scheduled"):
             start_iso = event.get("date")
             if start_iso:
@@ -110,7 +104,6 @@ async def check_sport(scoreboard_url, sport_name, channel):
                         await channel.send(embed=emb)
                         pre_notified.add(game_id)
 
-        # Final summary
         if status_type in ("post", "completed", "final"):
             if prev not in ("post", "completed", "final"):
                 emb = discord.Embed(title=f"{sport_name} — Final", description=f"Final score for {SCHOOL}")
@@ -186,8 +179,9 @@ async def on_ready():
 # Run Bot (correct location)
 # -----------------------------
 
-TOKEN = os.getenv("DISCORD_TOKEN")
-if TOKEN is None:
-    raise ValueError("DISCORD_TOKEN environment variable not set!")
-
-bot.run(TOKEN)
+if __name__ == "__main__":
+    TOKEN = os.getenv("DISCORD_TOKEN")
+    print("Loaded token:", TOKEN)  # TEMPORARY DEBUG
+    if TOKEN is None:
+        raise ValueError("DISCORD_TOKEN environment variable not set!")
+    bot.run(TOKEN)
