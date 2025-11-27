@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 with open("config.json") as f:
     cfg = json.load(f)
 
-TOKEN = os.getenv("dicord_token")  # Railway injects this at runtime
+TOKEN = os.getenv("DISCORD_TOKEN")  # Railway injects this at runtime
 if TOKEN is None:
     raise ValueError("DISCORD_TOKEN environment variable not set!")
     
