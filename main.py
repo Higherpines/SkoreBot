@@ -168,7 +168,8 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
 from datetime import datetime, timedelta
 
-@tree.command(name="previous", description="Get previous final scores for South Carolina for a sport.")
+
+@tree.command(name="previous", description="Get previous final scores for USC for a sport.")
 @app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
 async def slash_previous(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
@@ -208,18 +209,13 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             if not comp:
                 continue
 
-            # Match "South Carolina" instead of "USC"
+            # DEBUG: print all team names to logs
+            for c in comp.get("competitors", []):
+                print("DEBUG TEAM:", c.get("team", {}).get("displayName", ""))
+
+            # Filter for USC / South Carolina (adjust once we see the exact name)
             if not any("south carolina" in c.get("team", {}).get("displayName", "").lower()
                        for c in comp.get("competitors", [])):
-                           for event in data.get("events", []):
-    comp = event.get("competitions", [None])[0]
-    if not comp:
-        continue
-
-    # DEBUG: print all team names
-    for c in comp.get("competitors", []):
-        print("DEBUG TEAM:", c.get("team", {}).get("displayName", ""))
-
                 continue
 
             # Only include completed games
@@ -237,10 +233,11 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             )
 
     if not lines:
-        await interaction.followup.send("No completed South Carolina games found this season.")
+        await interaction.followup.send("No completed USC games found this season.")
         return
 
     await interaction.followup.send("\n".join(lines))
+
 
 
 
