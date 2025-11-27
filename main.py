@@ -168,7 +168,7 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
 from datetime import datetime, timedelta
 
-@tree.command(name="previous", description="Get previous final scores for USC for a sport.")
+@tree.command(name="previous", description="Get previous final scores for South Carolina for a sport.")
 @app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
 async def slash_previous(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
@@ -187,10 +187,12 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         await interaction.followup.send("Sport not found in config.")
         return
 
-    # Loop through last 90 days (adjust as needed)
+    # Full season range (Aug 1 → today)
+    start_date = datetime(datetime.now().year, 8, 1)
     today = datetime.now()
+    days = (today - start_date).days
     dates_to_check = [
-        (today - timedelta(days=i)).strftime("%Y%m%d") for i in range(90)
+        (today - timedelta(days=i)).strftime("%Y%m%d") for i in range(days)
     ]
 
     lines = []
@@ -206,8 +208,8 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             if not comp:
                 continue
 
-            # Only include USC games
-            if not any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower()
+            # Match "South Carolina" instead of "USC"
+            if not any("south carolina" in c.get("team", {}).get("displayName", "").lower()
                        for c in comp.get("competitors", [])):
                 continue
 
@@ -226,10 +228,11 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             )
 
     if not lines:
-        await interaction.followup.send("No completed USC games found in the last 90 days.")
+        await interaction.followup.send("No completed South Carolina games found this season.")
         return
 
     await interaction.followup.send("\n".join(lines))
+
 
 
 
