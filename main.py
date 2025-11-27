@@ -136,34 +136,95 @@ async def watcher_loop():
 # Slash Commands
 # -----------------------------
 
-@tree.command(name="score", description="Get current live score for USC.")
-@app_commands.describe(sport_name="Optional sport name")
+import discord
+from datetime import datetime
+
+@tree.command(name="score", description="Get today's scores for South Carolina Gamecocks in a sport.")
+@app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
 async def slash_score(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
-    sport = next((s for s in SPORTS if s["name"].lower() == sport_name.lower()), SPORTS[0] if sport_name is None else None)
+
+    # Pick sport
+    sport = None
+    if sport_name:
+        for s in SPORTS:
+            if s["name"].lower() == sport_name.lower():
+                sport = s
+                break
+    else:
+        sport = SPORTS[0]
+
     if not sport:
-        await interaction.followup.send("Sport not found.")
+        await interaction.followup.send("Sport not found in config.")
         return
 
+    # Fetch today's scoreboard
+    today = datetime.now().strftime("%Y%m%d")
+    url = f"{sport['url']}?dates={today}"
+
     try:
-        data = await fetch_json(sport["url"])
+        data = await fetch_json(url)
     except Exception as e:
         await interaction.followup.send(f"Failed to fetch scoreboard: {e}")
         return
 
-    lines = []
-    for event in data.get("events", []):
+    events = data.get("events", [])
+    if not events:
+        await interaction.followup.send("No games found today.")
+        return
+
+    embeds = []
+    for event in events:
         comp = event.get("competitions", [None])[0]
         if not comp:
             continue
-        if any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower() for c in comp.get("competitors", [])):
-            away = comp.get("competitors", [])[0]
-            home = comp.get("competitors", [None, None])[1]
-            status = comp.get("status", {}).get("type", {}).get("description", "")
-            lines.append(f"{away.get('team',{}).get('displayName','')} {away.get('score','0')} - "
-                         f"{home.get('team',{}).get('displayName','')} {home.get('score','0')} ({status})")
 
-    await interaction.followup.send("\n".join(lines) if lines else "No current games found.")
+        # Only include South Carolina Gamecocks
+        if not any("south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower()
+                   for c in comp.get("competitors", [])):
+            continue
+
+        away = comp.get("competitors", [])[0]
+        home = comp.get("competitors", [None, None])[1]
+
+        # Status
+        status = comp.get("status", {}).get("type", {}).get("name", "").upper()
+        status_text = "⏱️ In Progress"
+        color = discord.Color.light_gray()
+        if status == "STATUS_FINAL":
+            status_text = "✅ Final"
+            # Color based on win/loss
+            for c in comp.get("competitors", []):
+                if "south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower():
+                    color = discord.Color.green() if c.get("winner", False) else discord.Color.red()
+        elif status == "STATUS_SCHEDULED":
+            status_text = "📅 Scheduled"
+            color = discord.Color.blue()
+
+        # Build embed
+        embed = discord.Embed(
+            title=f"{away.get('team',{}).get('displayName','')} vs {home.get('team',{}).get('displayName','')}",
+            description=f"{away.get('score','0')} - {home.get('score','0')} ({status_text})",
+            color=color
+        )
+        embed.set_footer(text="Powered by ESPN API")
+
+        # Add logos
+        if home.get("team", {}).get("logo"):
+            embed.set_thumbnail(url=home["team"]["logo"])
+        elif away.get("team", {}).get("logo"):
+            embed.set_thumbnail(url=away["team"]["logo"])
+
+        embeds.append(embed)
+
+    if not embeds:
+        await interaction.followup.send("No South Carolina Gamecocks games found today.")
+        return
+
+    # Send all embeds (if multiple games)
+    for e in embeds:
+        await interaction.followup.send(embed=e)
+
 
 
 from datetime import datetime, timedelta
