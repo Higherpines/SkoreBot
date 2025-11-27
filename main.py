@@ -139,8 +139,8 @@ async def watcher_loop():
 import discord
 from datetime import datetime
 
-@tree.command(name="score", description="Get today's scores for South Carolina Gamecocks in a sport.")
-@app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
+@tree.command(name="score", description="Get the latest South Carolina Gamecocks score for a sport.")
+@app_commands.describe(sport_name="Optional sport name, e.g. 'Women's Basketball'")
 async def slash_score(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
 
@@ -173,7 +173,7 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
         await interaction.followup.send("No games found today.")
         return
 
-    embeds = []
+    found_game = None
     for event in events:
         comp = event.get("competitions", [None])[0]
         if not comp:
@@ -184,46 +184,51 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
                    for c in comp.get("competitors", [])):
             continue
 
-        away = comp.get("competitors", [])[0]
-        home = comp.get("competitors", [None, None])[1]
+        found_game = comp
+        break
 
-        # Status
-        status = comp.get("status", {}).get("type", {}).get("name", "").upper()
-        status_text = "⏱️ In Progress"
-        color = discord.Color.light_gray()
-        if status == "STATUS_FINAL":
-            status_text = "✅ Final"
-            # Color based on win/loss
-            for c in comp.get("competitors", []):
-                if "south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower():
-                    color = discord.Color.green() if c.get("winner", False) else discord.Color.red()
-        elif status == "STATUS_SCHEDULED":
-            status_text = "📅 Scheduled"
-            color = discord.Color.blue()
-
-        # Build embed
-        embed = discord.Embed(
-            title=f"{away.get('team',{}).get('displayName','')} vs {home.get('team',{}).get('displayName','')}",
-            description=f"{away.get('score','0')} - {home.get('score','0')} ({status_text})",
-            color=color
-        )
-        embed.set_footer(text="Powered by ESPN API")
-
-        # Add logos
-        if home.get("team", {}).get("logo"):
-            embed.set_thumbnail(url=home["team"]["logo"])
-        elif away.get("team", {}).get("logo"):
-            embed.set_thumbnail(url=away["team"]["logo"])
-
-        embeds.append(embed)
-
-    if not embeds:
+    if not found_game:
         await interaction.followup.send("No South Carolina Gamecocks games found today.")
         return
 
-    # Send all embeds (if multiple games)
-    for e in embeds:
-        await interaction.followup.send(embed=e)
+    away = found_game.get("competitors", [])[0]
+    home = found_game.get("competitors", [None, None])[1]
+
+    # Status handling
+    status = found_game.get("status", {}).get("type", {}).get("name", "").upper()
+    status_text = "⏱️ In Progress"
+    color = discord.Color.light_gray()
+
+    if status == "STATUS_FINAL":
+        status_text = "✅ Final"
+        for c in found_game.get("competitors", []):
+            if "south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower():
+                color = discord.Color.green() if c.get("winner", False) else discord.Color.red()
+
+    elif status == "STATUS_SCHEDULED":
+        status_text = "📅 Scheduled"
+        color = discord.Color.blue()
+
+    elif status == "STATUS_IN_PROGRESS":
+        status_text = "⏱️ Live"
+        color = discord.Color.orange()
+
+    # Build embed
+    embed = discord.Embed(
+        title=f"{away.get('team',{}).get('displayName','')} vs {home.get('team',{}).get('displayName','')}",
+        description=f"{away.get('score','0')} - {home.get('score','0')} ({status_text})",
+        color=color
+    )
+    embed.set_footer(text="Powered by ESPN API")
+
+    # Add logos
+    if home.get("team", {}).get("logo"):
+        embed.set_thumbnail(url=home["team"]["logo"])
+    elif away.get("team", {}).get("logo"):
+        embed.set_thumbnail(url=away["team"]["logo"])
+
+    await interaction.followup.send(embed=embed)
+
 
 
 
