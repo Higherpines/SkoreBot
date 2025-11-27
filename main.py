@@ -165,12 +165,14 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
     await interaction.followup.send("\n".join(lines) if lines else "No current games found.")
 
+from datetime import datetime
+
 @tree.command(name="previous", description="Get previous final scores for USC for a sport.")
 @app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
 async def slash_previous(interaction: discord.Interaction, sport_name: str = None):
     await interaction.response.defer()
 
-    # Pick sport
+    # Pick sport from config
     sport = None
     if sport_name:
         for s in SPORTS:
@@ -184,9 +186,10 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         await interaction.followup.send("Sport not found in config.")
         return
 
-    # Build season URL (full year)
-    year = datetime.now().year
-    season_url = f"{sport['url']}?dates={year}"
+    # Build season date range (Aug 1 → today)
+    start = "20250801"  # adjust if your season starts earlier
+    end = datetime.now().strftime("%Y%m%d")
+    season_url = f"{sport['url']}?dates={start}-{end}"
 
     try:
         data = await fetch_json(season_url)
@@ -215,7 +218,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         if status not in ("post", "completed", "final"):
             continue
 
-        # Format score
+        # Format score line
         away = comp.get("competitors", [])[0]
         home = comp.get("competitors", [None, None])[1]
         date = datetime.fromisoformat(event["date"].replace("Z", "+00:00"))
@@ -226,7 +229,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         )
 
     if not lines:
-        await interaction.followup.send("No completed games found for this season.")
+        await interaction.followup.send("No completed USC games found in this date range.")
         return
 
     await interaction.followup.send("\n".join(lines))
