@@ -15,11 +15,11 @@ with open("config.json") as f:
 
 CHANNEL_ID = cfg["channel_id"]
 SCHOOL = cfg.get("school_name", "South Carolina Gamecocks").strip()
-SPORTS = cfg["sports"]                      # list of { "name": "...", "url": "..." }
+SPORTS = cfg["sports"]
 CHECK_INTERVAL = cfg.get("check_interval_seconds", 60)
 PRE_GAME_MINUTES = cfg.get("pre_game_minutes", 30)
-GUILD_ID = cfg.get("guild_id")              # optional, for faster slash command sync
-PING_STRING = cfg.get("ping_string", "")    # e.g., "@everyone"
+GUILD_ID = cfg.get("guild_id")
+PING_STRING = cfg.get("ping_string", "")
 
 # =============================
 # Discord setup
@@ -31,11 +31,11 @@ tree = app_commands.CommandTree(bot)
 # =============================
 # State
 # =============================
-last_updates = {}     # game_id -> scoring plays list
-last_status = {}      # game_id -> last status string
-pre_notified = set()  # game_ids notified for pre-game
-final_posted = set()  # game_ids with final already posted
-last_articles = set() # URLs already posted (news)
+last_updates = {}
+last_status = {}
+pre_notified = set()
+final_posted = set()
+last_articles = set()
 
 # =============================
 # HTTP utilities
@@ -58,53 +58,18 @@ async def fetch_html(url):
 # Helpers
 # =============================
 def is_gamecocks_name(name):
-    n = (name or "").lower()
-    return "south carolina gamecocks" in n or n == "south carolina" or n == "south carolina sc"
+    n = (name or "").lower().strip()
+    return (
+        "south carolina gamecocks" in n or
+        n == "south carolina" or
+        n == "gamecocks" or
+        n == "sc"
+    )
 
 def hi_res_logo(url, size="200"):
     if not url:
         return None
     return re.sub(r"/\d+\.(png|jpg)$", f"/{size}.\\1", url)
-
-def pick_embed_color_for_status(status_name_upper, competitors):
-    if status_name_upper == "STATUS_SCHEDULED":
-        return discord.Color.blue()
-    if status_name_upper == "STATUS_IN_PROGRESS":
-        return discord.Color.orange()
-    if status_name_upper == "STATUS_FINAL":
-        for c in competitors or []:
-            team_name = c.get("team", {}).get("displayName", "")
-            if is_gamecocks_name(team_name):
-                return discord.Color.green() if c.get("winner", False) else discord.Color.red()
-        return discord.Color.dark_gray()
-    return discord.Color.light_gray()
-
-def extract_big_image_from_summary(summary, prefer_gamecocks=True):
-    if not summary:
-        return None
-    try:
-        header_comp = summary.get("header", {}).get("competitions", [])[0]
-        competitors = header_comp.get("competitors", [])
-        img_url = None
-        if prefer_gamecocks:
-            for c in competitors:
-                t = c.get("team", {})
-                if is_gamecocks_name(t.get("displayName", "")):
-                    img_url = t.get("logo")
-                    break
-        if not img_url and competitors:
-            img_url = competitors[0].get("team", {}).get("logo")
-        return hi_res_logo(img_url, "400")
-    except Exception:
-        return None
-
-def team_logos_from_comp(comp):
-    logos = []
-    for c in comp.get("competitors", []):
-        logo = c.get("team", {}).get("logo")
-        if logo:
-            logos.append(hi_res_logo(logo, "200"))
-    return logos
 
 def status_text_from_comp(comp):
     status = comp.get("status", {}).get("type", {}).get("name", "").upper()
@@ -116,6 +81,24 @@ def status_text_from_comp(comp):
     }
     return mapping.get(status, "⏱️ In Progress"), status
 
+def extract_big_image_from_summary(summary):
+    if not summary:
+        return None
+    try:
+        header_comp = summary.get("header", {}).get("competitions", [])[0]
+        competitors = header_comp.get("competitors", [])
+        # Prefer Gamecocks logo
+        for c in competitors:
+            t = c.get("team", {})
+            if is_gamecocks_name(t.get("displayName", "")):
+                return hi_res_logo(t.get("logo"), "400")
+        # Fallback to first
+        if competitors:
+            return hi_res_logo(competitors[0].get("team", {}).get("logo"), "400")
+    except Exception:
+        pass
+    return None
+
 def build_matchup_embed(sport_name, comp, summary=None, override_status_text=None):
     away = comp.get("competitors", [])[0]
     home = comp.get("competitors", [None, None])[1]
@@ -126,65 +109,85 @@ def build_matchup_embed(sport_name, comp, summary=None, override_status_text=Non
         status_text = override_status_text
 
     desc = f"{away.get('score','0')} - {home.get('score','0')} ({status_text})"
-    color = pick_embed_color_for_status(status_upper, comp.get("competitors", []))
+    # Color: win green, final red if loss, blue otherwise
+    color = discord.Color.blue()
+    if status_upper == "STATUS_FINAL":
+        for c in comp.get("competitors", []):
+            t = c.get("team", {})
+            if is_gamecocks_name(t.get("displayName", "")):
+                color = discord.Color.green() if c.get("winner", False) else discord.Color.red()
+                break
 
     embed = discord.Embed(title=title, description=desc, color=color)
     embed.set_footer(text="Powered by ESPN API")
 
-    # Thumbnail: try home logo, else away; use hi-res
-    thumb = hi_res_logo(home.get("team", {}).get("logo")) or hi_res_logo(away.get("team", {}).get("logo"))
+    # Thumbnail: prefer Gamecocks logo
+    gamecocks_logo = None
+    opponent_logo = None
+    for c in comp.get("competitors", []):
+        t = c.get("team", {})
+        if is_gamecocks_name(t.get("displayName", "")):
+            gamecocks_logo = t.get("logo")
+        else:
+            opponent_logo = t.get("logo")
+    thumb = hi_res_logo(gamecocks_logo, "200") or hi_res_logo(opponent_logo, "200")
     if thumb:
         embed.set_thumbnail(url=thumb)
 
-    # Big image from summary (ESPN-style), fallback to a logo
-    big_img = extract_big_image_from_summary(summary) if summary else None
+    # Big image
+    big_img = extract_big_image_from_summary(summary)
     if not big_img:
-        logos = team_logos_from_comp(comp)
-        if logos:
-            big_img = logos[0]
+        big_img = hi_res_logo(gamecocks_logo, "400") or hi_res_logo(opponent_logo, "400")
     if big_img:
         embed.set_image(url=big_img)
 
     return embed
 
 def build_scoring_embed_espn_style(sport_name, play, comp, summary=None):
-    # Keep ESPN look while highlighting scoring text
     team = play.get("team", {}).get("displayName", "Team")
     away_score = play.get("awayScore", "0")
     home_score = play.get("homeScore", "0")
     text = play.get("text", "Scoring play")
 
-    status_text, status_upper = status_text_from_comp(comp)
+    status_text, _ = status_text_from_comp(comp)
     desc = f"{away_score} - {home_score} ({status_text})\n\n{text}"
 
     color = discord.Color.green() if is_gamecocks_name(team) else discord.Color.orange()
     embed = discord.Embed(title=f"{sport_name} — Scoring Update", description=desc, color=color)
     embed.set_footer(text="Powered by ESPN API")
-    # Thumbnail: scoring team logo at higher res
-    logo = play.get("team", {}).get("logo")
-    if logo:
-        embed.set_thumbnail(url=hi_res_logo(logo, "200"))
-    # Big image: same logic as matchup for visual continuity
+
+    # Thumbnail: prefer Gamecocks logo if opponent scored
+    scoring_logo = play.get("team", {}).get("logo")
+    sc_logo = None
+    opp_logo = None
+    for c in comp.get("competitors", []):
+        t = c.get("team", {})
+        if is_gamecocks_name(t.get("displayName", "")):
+            sc_logo = t.get("logo")
+        else:
+            opp_logo = t.get("logo")
+    thumb = hi_res_logo(sc_logo, "200") if not is_gamecocks_name(team) else hi_res_logo(scoring_logo, "200")
+    if not thumb:
+        thumb = hi_res_logo(sc_logo, "200") or hi_res_logo(opp_logo, "200")
+    if thumb:
+        embed.set_thumbnail(url=thumb)
+
     big_img = extract_big_image_from_summary(summary) if summary else None
+    if not big_img:
+        big_img = hi_res_logo(sc_logo, "400") or hi_res_logo(opp_logo, "400")
     if big_img:
         embed.set_image(url=big_img)
+
     embed.timestamp = datetime.now(timezone.utc)
     return embed
-
-def build_previous_embed_espan_style(sport_name, games):
-    # games: list of dict with keys below
-    # Choose an image from the most recent game
+def build_previous_embed_espan_style(sport_name, games, wins, losses):
     latest = games[0]
-    title = f"{SCHOOL} — Previous {sport_name} Games"
+    title = f"{SCHOOL} — Previous {sport_name} Games ({wins}-{losses})"
     embed = discord.Embed(title=title, color=discord.Color.red())
-    # Use a logo as image for ESPN look
     big_logo = latest.get("home_logo") or latest.get("away_logo")
     if big_logo:
         embed.set_image(url=hi_res_logo(big_logo, "400"))
-    thumb_logo = latest.get("home_logo") or latest.get("away_logo")
-    if thumb_logo:
-        embed.set_thumbnail(url=hi_res_logo(thumb_logo, "200"))
-    # Add each game line
+        embed.set_thumbnail(url=hi_res_logo(big_logo, "200"))
     for g in games[:5]:
         embed.add_field(
             name=g['date'],
@@ -209,7 +212,6 @@ def build_news_embed_espan_style(title, link, image_url=None):
     return emb
 
 def find_first_img_src(html):
-    # naive scrape for first article-like image
     m = re.search(r'<img[^>]+src="([^"]+)"', html)
     return m.group(1) if m else None
 
@@ -233,7 +235,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
         if not any(is_gamecocks_name(c.get("team", {}).get("displayName", "")) for c in competitors):
             continue
 
-        # Pull summary for richer assets and scoring plays
+        # Summary for richer assets and scoring plays
         summary_url = scoreboard_url.replace("scoreboard", f"summary?event={game_id}")
         try:
             summary = await fetch_json(summary_url)
@@ -241,7 +243,7 @@ async def check_sport(scoreboard_url, sport_name, channel):
             print(f"[{sport_name}] Summary fetch failed ({game_id}): {e}")
             summary = None
 
-        # Scoring plays (ESPN-style embeds)
+        # Scoring plays (ESPN-style)
         scoring = (summary or {}).get("scoringPlays", []) or []
         old = last_updates.get(game_id, [])
         if scoring != old:
@@ -251,10 +253,9 @@ async def check_sport(scoreboard_url, sport_name, channel):
                 await channel.send(embed=emb)
             last_updates[game_id] = scoring
 
-        # Status handling
         status_text, status_upper = status_text_from_comp(comp)
 
-        # Pre-game notice with ESPN-style graphic
+        # Pre-game alert
         if status_upper in ("STATUS_SCHEDULED", "PRE"):
             start_iso = event.get("date")
             if start_iso:
@@ -263,15 +264,14 @@ async def check_sport(scoreboard_url, sport_name, channel):
                 delta = start_dt - now
                 if 0 < delta.total_seconds() <= PRE_GAME_MINUTES * 60 and game_id not in pre_notified:
                     minutes = int(delta.total_seconds() // 60)
-                    override = f"Starts in {minutes} minutes"
-                    emb = build_matchup_embed(sport_name, comp, summary=summary, override_status_text=override)
+                    emb = build_matchup_embed(sport_name, comp, summary=summary, override_status_text=f"Starts in {minutes} minutes")
                     if PING_STRING:
                         await channel.send(f"{PING_STRING} Game starting soon!", embed=emb)
                     else:
                         await channel.send(embed=emb)
                     pre_notified.add(game_id)
 
-        # Final score with ESPN-style graphic (only once)
+        # Final alert (deduped)
         if status_upper == "STATUS_FINAL" and game_id not in final_posted:
             final_emb = build_matchup_embed(sport_name, comp, summary=summary, override_status_text="✅ Final")
             await channel.send(embed=final_emb)
@@ -298,30 +298,26 @@ async def news_loop():
     channel = bot.get_channel(CHANNEL_ID)
     if channel is None:
         return
-    # ESPN team page (football). You can add more sources in config later.
     url = "https://www.espn.com/college-football/team/_/id/2579/south-carolina-gamecocks"
     try:
         html = await fetch_html(url)
     except Exception as e:
         print(f"[News] Fetch failed: {e}")
         return
-
-    # Basic headline + link scrape
     articles = re.findall(r'<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>', html)
     for link, title in articles:
         if "story" in link and "gamecocks" in title.lower():
             if link not in last_articles:
-                # Try to pull an image from page for ESPN look
-                img = None
+                # Try to pull an image from the article
                 try:
-                    article_html = await fetch_html(link if link.startswith("http") else f"https://www.espn.com{link}")
+                    article_url = link if link.startswith("http") else f"https://www.espn.com{link}"
+                    article_html = await fetch_html(article_url)
                     img = find_first_img_src(article_html)
                 except Exception:
                     img = None
                 emb = build_news_embed_espan_style(title.strip(), link if link.startswith("http") else f"https://www.espn.com{link}", img)
                 await channel.send(embed=emb)
                 last_articles.add(link)
-
 # =============================
 # Global app command error handler
 # =============================
@@ -458,7 +454,8 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
 
             # Track wins/losses
             for c in comp.get("competitors", []):
-                if is_gamecocks_name(c.get("team", {}).get("displayName", "")):
+                t = c.get("team", {})
+                if is_gamecocks_name(t.get("displayName", "")):
                     if c.get("winner", False):
                         wins += 1
                     else:
@@ -478,9 +475,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         await interaction.followup.send("No completed South Carolina Gamecocks games found this season.")
         return
 
-    embed = build_previous_embed_espan_style(sport["name"], games)
-    # Add record to title or as field
-    embed.add_field(name="Record", value=f"{wins}-{losses}", inline=False)
+    embed = build_previous_embed_espan_style(sport["name"], games, wins, losses)
     await interaction.followup.send(embed=embed)
 
 # =============================
