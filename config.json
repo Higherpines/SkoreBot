@@ -11,19 +11,19 @@
         },
         {
             "name": "Men's Basketball",
-            "url": "https://site.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/scoreboard"
+            "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard"
         },
         {
             "name": "Women's Basketball",
-            "url": "https://site.api.espn.com/apis/v2/sports/basketball/womens-college-basketball/scoreboard"
+            "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/womens-college-basketball/scoreboard"
         },
         {
             "name": "Baseball",
-            "url": "https://site.api.espn.com/apis/v2/sports/baseball/college-baseball/scoreboard"
+            "url": "https://site.api.espn.com/apis/site/v2/sports/baseball/college-baseball/scoreboard"
         },
         {
             "name": "Softball",
-            "url": "https://site.api.espn.com/apis/v2/sports/softball/college-softball/scoreboard"
+            "url": "https://site.api.espn.com/apis/site/v2/sports/softball/college-softball/scoreboard"
         }
     ]
 }
