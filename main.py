@@ -165,6 +165,69 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
     await interaction.followup.send("\n".join(lines) if lines else "No current games found.")
 
+@tree.command(name="previous", description="Get previous final scores for USC for a sport.")
+@app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
+async def slash_previous(interaction: discord.Interaction, sport_name: str = None):
+    await interaction.response.defer()
+
+    # Pick sport
+    sport = None
+    if sport_name:
+        for s in SPORTS:
+            if s["name"].lower() == sport_name.lower():
+                sport = s
+                break
+    else:
+        sport = SPORTS[0]
+
+    if not sport:
+        await interaction.followup.send("Sport not found in config.")
+        return
+
+    # Build season URL
+    year = datetime.now().year
+    season_url = f"{sport['url']}?dates={year}"
+
+    try:
+        data = await fetch_json(season_url)
+    except Exception as e:
+        await interaction.followup.send(f"Failed to fetch season data: {e}")
+        return
+
+    lines = []
+    for event in data.get("events", []):
+        comp = event.get("competitions", [None])[0]
+        if not comp:
+            continue
+
+        # Only include USC games
+        if not any(SCHOOL.lower() in c.get("team", {}).get("displayName", "").lower()
+                   for c in comp.get("competitors", [])):
+            continue
+
+        # Only include completed games
+        status = comp.get("status", {}).get("type", {}).get("name", "").lower()
+        if status not in ("post", "completed", "final"):
+            continue
+
+        # Format score
+        away = comp.get("competitors", [])[0]
+        home = comp.get("competitors", [None, None])[1]
+        date = datetime.fromisoformat(event["date"].replace("Z", "+00:00"))
+        lines.append(
+            f"{date.strftime('%Y-%m-%d')}: "
+            f"{away.get('team',{}).get('displayName','')} {away.get('score','0')} - "
+            f"{home.get('team',{}).get('displayName','')} {home.get('score','0')}"
+        )
+
+    if not lines:
+        await interaction.followup.send("No completed games found for this season.")
+        return
+
+    await interaction.followup.send("\n".join(lines))
+
+    
+
 # -----------------------------
 # Bot Ready Event
 # -----------------------------
