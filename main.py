@@ -14,6 +14,8 @@ with open("config.json") as f:
 TOKEN = os.getenv("DISCORD_TOKEN")  # Railway injects this at runtime
 if TOKEN is None:
     raise ValueError("DISCORD_TOKEN environment variable not set!")
+
+bot.run(TOKEN)
     
 CHANNEL_ID = cfg["channel_id"]
 SCHOOL = cfg.get("school_name", "South Carolina")
