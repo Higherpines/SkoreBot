@@ -38,15 +38,17 @@ last_articles = set()
 # -----------------------------
 # Utilities
 # -----------------------------
+HTTP_TIMEOUT = aiohttp.ClientTimeout(total=10)
+
 async def fetch_json(url):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
+    async with aiohttp.ClientSession(timeout=HTTP_TIMEOUT) as session:
+        async with session.get(url, headers={"User-Agent": "SkoreBot/1.0"}) as resp:
             resp.raise_for_status()
             return await resp.json()
 
 async def fetch_html(url):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
+    async with aiohttp.ClientSession(timeout=HTTP_TIMEOUT) as session:
+        async with session.get(url, headers={"User-Agent": "SkoreBot/1.0"}) as resp:
             resp.raise_for_status()
             return await resp.text()
 
@@ -135,103 +137,5 @@ def build_news_embed(title, link, sport_name="Gamecocks News"):
     )
     emb.set_footer(text="Source: ESPN")
     emb.timestamp = datetime.now(timezone.utc)
-    return emb
-
-# -----------------------------
-# Game Checking Logic
-# -----------------------------
-async def check_sport(scoreboard_url, sport_name, channel):
-    try:
-        data = await fetch_json(scoreboard_url)
-    except Exception as e:
-        print(f"Failed to fetch {sport_name} scoreboard: {e}")
-        return
-
-    for event in data.get("events", []):
-        game_id = event.get("id")
-        comp = event.get("competitions", [None])[0]
-        if comp is None:
-            continue
-        competitors = comp.get("competitors", [])
-        if not any(is_gamecocks_name(c.get("team", {}).get("displayName", "")) for c in competitors):
-            continue
-
-        summary_url = scoreboard_url.replace("scoreboard", f"summary?event={game_id}")
-        try:
-            summary = await fetch_json(summary_url)
-        except Exception as e:
-            print(f"Failed to fetch summary for {game_id}: {e}")
-            continue
-
-        scoring = summary.get("scoringPlays", []) or []
-        old = last_updates.get(game_id, [])
-        if scoring != old:
-            new = scoring[len(old):] if len(scoring) >= len(old) else scoring
-            for play in new:
-                emb = build_scoring_embed(sport_name, play)
-                await channel.send(embed=emb)
-            last_updates[game_id] = scoring
-
-        status_type = comp.get("status", {}).get("type", {}).get("name", "").upper()
-        prev_status = last_status.get(game_id)
-
-        if status_type in ("STATUS_SCHEDULED", "PRE"):
-            start_iso = event.get("date")
-            if start_iso:
-                start_dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
-                now = datetime.now(timezone.utc)
-                delta = start_dt - now
-                if 0 < delta.total_seconds() <= PRE_GAME_MINUTES * 60:
-                    if game_id not in pre_notified:
-                        minutes = int(delta.total_seconds() // 60)
-                        emb = build_upcoming_embed(sport_name, start_dt, minutes)
-                        await channel.send(embed=emb)
-                        pre_notified.add(game_id)
-
-        if status_type == "STATUS_FINAL" and prev_status != "STATUS_FINAL":
-            final_emb = build_final_embed(sport_name, summary)
-            await channel.send(embed=final_emb)
-
-        last_status[game_id] = status_type
-
-# -----------------------------
-# Background Loops
-# -----------------------------
-@tasks.loop(seconds=CHECK_INTERVAL)
-async def watcher_loop():
-    await bot.wait_until_ready()
-    channel = bot.get_channel(CHANNEL_ID)
-    if channel is None:
-        print("Channel not found — check CHANNEL_ID in config.json.")
-        return
-    for sport in SPORTS:
-        await check_sport(sport["url"], sport["name"], channel)
-
-@tasks.loop(minutes=15)
-async def news_loop():
-    await bot.wait_until_ready()
-    channel = bot.get_channel(CHANNEL_ID)
-    if channel is None:
-        return
-    url = "https://www.espn.com/college-football/team/_/id/2579/south-carolina-gamecocks"
-    try:
-        html = await fetch_html(url)
-    except Exception as e:
-        print("Failed to fetch news:", e)
-        return
-    articles = re.findall(r'<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>', html)
-    for link, title in articles:
-        if "story" in link and "gamecocks" in title.lower():
-            if link not in last_articles:
-                emb = build_news_embed(title.strip(), link)
-                await channel.send(embed=emb)
-                last_articles.add(link)
-
-# -----------------------------
-# Slash Commands
-# -----------------------------
-@tree.command(name="score", description="Get today's South Carolina Gamecocks score for a sport.")
-@app_commands.describe(sport_name="Optional sport name, e.g. 'Women's Basketball'")
-async def slash_score(interaction: discord.Interaction, sport_name: str = None):
-    await interaction.response.defer()
-    sport
+    return
+    
