@@ -184,7 +184,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         await interaction.followup.send("Sport not found in config.")
         return
 
-    # Build season URL
+    # Build season URL (full year)
     year = datetime.now().year
     season_url = f"{sport['url']}?dates={year}"
 
@@ -194,8 +194,13 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         await interaction.followup.send(f"Failed to fetch season data: {e}")
         return
 
+    events = data.get("events", [])
+    if not events:
+        await interaction.followup.send("No games found for this season.")
+        return
+
     lines = []
-    for event in data.get("events", []):
+    for event in events:
         comp = event.get("competitions", [None])[0]
         if not comp:
             continue
@@ -225,6 +230,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         return
 
     await interaction.followup.send("\n".join(lines))
+
 
     
 
