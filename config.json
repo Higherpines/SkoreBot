@@ -7,7 +7,7 @@
     "sports": [
         {
             "name": "College Football",
-            "url": "https://sports.core.api.espn.com/v2/sports/basketball/mens-college-basketball/scoreboard"
+            "url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard"
         },
         {
             "name": "Men's Basketball",
