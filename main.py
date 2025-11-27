@@ -167,6 +167,7 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
 
 from datetime import datetime, timedelta
+import discord
 
 @tree.command(name="previous", description="Get previous final scores for South Carolina Gamecocks for a sport.")
 @app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
@@ -195,7 +196,9 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         (today - timedelta(days=i)).strftime("%Y%m%d") for i in range(days)
     ]
 
-    lines = []
+    games = []
+    wins, losses = 0, 0
+
     for d in dates_to_check:
         season_url = f"{sport['url']}?dates={d}"
         try:
@@ -213,7 +216,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
                        for c in comp.get("competitors", [])):
                 continue
 
-            # ✅ Correct status check
+            # Only include completed games
             status = comp.get("status", {}).get("type", {}).get("name", "").upper()
             if status != "STATUS_FINAL":
                 continue
@@ -221,17 +224,51 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             away = comp.get("competitors", [])[0]
             home = comp.get("competitors", [None, None])[1]
             date = datetime.fromisoformat(event["date"].replace("Z", "+00:00"))
-            lines.append(
-                f"{date.strftime('%Y-%m-%d')}: "
-                f"{away.get('team',{}).get('displayName','')} {away.get('score','0')} - "
-                f"{home.get('team',{}).get('displayName','')} {home.get('score','0')}"
-            )
 
-    if not lines:
+            # Track wins/losses
+            for c in comp.get("competitors", []):
+                if "south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower():
+                    if c.get("winner", False):
+                        wins += 1
+                    else:
+                        losses += 1
+
+            # Build fancy embed entry
+            games.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "away": away.get("team", {}).get("displayName", ""),
+                "away_score": away.get("score", "0"),
+                "away_logo": away.get("team", {}).get("logo", ""),
+                "home": home.get("team", {}).get("displayName", ""),
+                "home_score": home.get("score", "0"),
+                "home_logo": home.get("team", {}).get("logo", ""),
+            })
+
+    if not games:
         await interaction.followup.send("No completed South Carolina Gamecocks games found this season.")
         return
 
-    await interaction.followup.send("\n".join(lines))
+    # Pagination: show last 5 games
+    latest_games = games[:5]
+    embed = discord.Embed(
+        title=f"South Carolina Gamecocks — Previous Games ({wins}-{losses})",
+        color=discord.Color.red()
+    )
+    for g in latest_games:
+        embed.add_field(
+            name=f"{g['date']}",
+            value=f"🏈 {g['away']} {g['away_score']} vs {g['home']} {g['home_score']}",
+            inline=False
+        )
+
+    # Add team logos (first game’s logos for flair)
+    if latest_games[0]["home_logo"]:
+        embed.set_thumbnail(url=latest_games[0]["home_logo"])
+    elif latest_games[0]["away_logo"]:
+        embed.set_thumbnail(url=latest_games[0]["away_logo"])
+
+    await interaction.followup.send(embed=embed)
+
 
 
 
