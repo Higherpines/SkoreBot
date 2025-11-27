@@ -1,5 +1,5 @@
 {
-    "token": "dicord_token",
+    "token": "DISCORD_TOKEN",
     "channel_id": 1411766116128129129,
     "school_name": "South Carolina",
     "check_interval_seconds": 60,
