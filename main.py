@@ -168,7 +168,6 @@ async def slash_score(interaction: discord.Interaction, sport_name: str = None):
 
 from datetime import datetime, timedelta
 
-
 @tree.command(name="previous", description="Get previous final scores for South Carolina Gamecocks for a sport.")
 @app_commands.describe(sport_name="Optional sport name, e.g. 'College Football'")
 async def slash_previous(interaction: discord.Interaction, sport_name: str = None):
@@ -209,12 +208,17 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
             if not comp:
                 continue
 
-            # ✅ Match "South Carolina Gamecocks"
+            # DEBUG: print team names and status
+            for c in comp.get("competitors", []):
+                print("DEBUG TEAM:", c.get("team", {}).get("displayName", ""))
+            print("DEBUG STATUS:", comp.get("status", {}).get("type", {}).get("name", ""))
+
+            # Match "South Carolina Gamecocks"
             if not any("south carolina gamecocks" in c.get("team", {}).get("displayName", "").lower()
                        for c in comp.get("competitors", [])):
                 continue
 
-            # Only include completed games
+            # Only include completed games (we’ll adjust once we see actual status strings)
             status = comp.get("status", {}).get("type", {}).get("name", "").lower()
             if status not in ("post", "completed", "final"):
                 continue
@@ -233,6 +237,7 @@ async def slash_previous(interaction: discord.Interaction, sport_name: str = Non
         return
 
     await interaction.followup.send("\n".join(lines))
+
 
 
 
